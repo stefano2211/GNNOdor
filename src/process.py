@@ -18,15 +18,11 @@ def get_data(raw_path:str):
     data = pd.read_csv(raw_path)
     return data
 
-def drop_description(data:pd.DataFrame, drop):
-    dataframe = data.drop([drop],axis=1)
+def drop_description(data:pd.DataFrame, drop:list):
+    dataframe = data.drop(drop,axis=1)
     return dataframe
 
-def get_features(data:pd.DataFrame, features):
-    train_smiles, test_smiles, train_labels, test_labels = train_test_split(data[features], data.iloc[:, 1:], test_size=0.2, random_state=42)
-    return train_smiles, test_smiles, train_labels, test_labels
-
-def balance_data(train_smiles, train_labels, test_smiles, test_labels, features):
+def balance_data(train_smiles, train_labels, test_smiles, test_labels):
     """
         Balances the data using RandomOverSampler.
 
@@ -50,7 +46,7 @@ def balance_data(train_smiles, train_labels, test_smiles, test_labels, features)
         train_labels_balanced = pd.concat([train_labels_balanced, pd.Series(train_labels_resampled)])
 
     # Convert back to original format
-    train_smiles_balanced = pd.DataFrame(train_smiles_balanced, columns=[features])[features]
+    train_smiles_balanced = pd.DataFrame(train_smiles_balanced, columns=["nonStereoSMILES"])["nonStereoSMILES"]
     train_labels_balanced = pd.DataFrame(train_labels_balanced, columns=train_labels.columns)
 
     return train_smiles_balanced, train_labels_balanced, test_smiles, test_labels
@@ -118,12 +114,12 @@ def save_data(train_data_loader, test_data_loader, ruta):
         pickle.dump(test_data_loader, f)
 
 
-@hydra.main(config_path="../config", config_name="main", version_base="1.2")
+@hydra.main(config_path="../config", config_name="main", version_base="1.1")
 def process_data(config: DictConfig):
     data = get_data(abspath(config.data.raw))
-    data = drop_description(data, abspath(config.column.drop))
+    dataframe = drop_description(data, config.column.drop)
 
-    train_smiles, test_smiles, train_labels, test_labels = get_features(data, abspath(config.column.smile)) 
+    train_smiles, test_smiles, train_labels, test_labels = train_test_split(dataframe["nonStereoSMILES"], dataframe.iloc[:, 1:], test_size=0.2, random_state=42)
 
     train_smiles_balanced, train_labels_balanced, test_smiles_balanced, test_labels_balanced = balance_data(train_smiles, train_labels, test_smiles, test_labels)    
 
@@ -134,7 +130,7 @@ def process_data(config: DictConfig):
     test_data_loader = pyg_data.DataLoader(test_data_list, batch_size=32, shuffle=False)
     max_nodes_train = max([data.x.size(0) for data in train_data_list])
 
-    save_data(train_data_loader, test_data_loader, abspath(config.data.processed))
+    save_data(train_data_loader, test_data_loader, config.data.processed)
 
 
 if __name__ == "__main__":
