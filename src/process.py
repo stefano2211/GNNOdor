@@ -7,7 +7,10 @@ from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import RandomOverSampler
 import torch_geometric.nn as pyg_nn
 import torch_geometric.data as pyg_data
+from hydra.utils import to_absolute_path as abspath
 import hydra
+import pickle
+import os
 from rdkit import Chem
 from omegaconf import DictConfig
 
@@ -92,15 +95,46 @@ def create_data_list(smiles_list, labels):
 
     return data_list
 
+def save_data(train_data_loader, test_data_loader, ruta):
+    """
+    Guarda los objetos train_data_loader y test_data_loader utilizando pickle en una ruta determinada.
 
+    Args:
+        train_data_loader: Objeto DataLoader para los datos de entrenamiento.
+        test_data_loader: Objeto DataLoader para los datos de prueba.
+        ruta: Ruta donde se guardarán los archivos.
+    """
+
+    # Crea la ruta si no existe
+    os.makedirs(ruta, exist_ok=True)
+
+    ruta_train = os.path.join(ruta, 'train_data_loader.pkl')
+    ruta_test = os.path.join(ruta, 'test_data_loader.pkl')
+
+    with open(ruta_train, 'wb') as f:
+        pickle.dump(train_data_loader, f)
+
+    with open(ruta_test, 'wb') as f:
+        pickle.dump(test_data_loader, f)
 
 
 @hydra.main(config_path="../config", config_name="main", version_base="1.2")
 def process_data(config: DictConfig):
-    """Function to process the data"""
+    data = get_data(abspath(config.data.raw))
+    data = drop_description(data, abspath(config.column.drop))
 
-    print(f"Process data using {config.data.raw}")
-    print(f"Columns used: {config.process.use_columns}")
+    train_smiles, test_smiles, train_labels, test_labels = get_features(data, abspath(config.column.smile)) 
+
+    train_smiles_balanced, train_labels_balanced, test_smiles_balanced, test_labels_balanced = balance_data(train_smiles, train_labels, test_smiles, test_labels)    
+
+    train_data_list = create_data_list(train_smiles_balanced, train_labels_balanced)
+    test_data_list = create_data_list(test_smiles_balanced, test_labels_balanced)
+
+    train_data_loader = pyg_data.DataLoader(train_data_list, batch_size=32, shuffle=True)
+    test_data_loader = pyg_data.DataLoader(test_data_list, batch_size=32, shuffle=False)
+    max_nodes_train = max([data.x.size(0) for data in train_data_list])
+
+    save_data(train_data_loader, test_data_loader, abspath(config.data.processed))
 
 
 if __name__ == "__main__":
