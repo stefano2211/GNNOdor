@@ -10,6 +10,7 @@ import torch_geometric.data as pyg_data
 from hydra.utils import to_absolute_path as abspath
 import hydra
 import pickle
+from torch.utils.data import Dataset
 import os
 from rdkit import Chem
 from omegaconf import DictConfig
@@ -91,27 +92,30 @@ def create_data_list(smiles_list, labels):
 
     return data_list
 
-def save_data(train_data_loader, test_data_loader, ruta):
-    """
-    Guarda los objetos train_data_loader y test_data_loader utilizando pickle en una ruta determinada.
+class MyDataset(Dataset):
+    def __init__(self, data):
+        self.data = data
 
-    Args:
-        train_data_loader: Objeto DataLoader para los datos de entrenamiento.
-        test_data_loader: Objeto DataLoader para los datos de prueba.
-        ruta: Ruta donde se guardarán los archivos.
-    """
+    def __getitem__(self, index):
+        return self.data[index]
 
-    # Crea la ruta si no existe
-    os.makedirs(ruta, exist_ok=True)
+    def __len__(self):
+        return len(self.data)
 
-    ruta_train = os.path.join(ruta, 'train_data_loader.pkl')
-    ruta_test = os.path.join(ruta, 'test_data_loader.pkl')
+def create_dataset(data_loader):
+    data_list = []
+    for batch in data_loader:
+        data_list.extend(batch)
+    return MyDataset(data_list)
 
-    with open(ruta_train, 'wb') as f:
-        pickle.dump(train_data_loader, f)
+def serialize_dataset(dataset, filename, save_dir):
+    filepath = os.path.join(save_dir, filename)
+    with open(filepath, 'wb') as f:
+        pickle.dump(dataset, f)
 
-    with open(ruta_test, 'wb') as f:
-        pickle.dump(test_data_loader, f)
+def deserialize_dataset(filename):
+    with open(filename, 'rb') as f:
+        return pickle.load(f)
 
 
 @hydra.main(config_path="../config", config_name="main", version_base="1.1")
@@ -130,7 +134,13 @@ def process_data(config: DictConfig):
     test_data_loader = pyg_data.DataLoader(test_data_list, batch_size=32, shuffle=False)
     max_nodes_train = max([data.x.size(0) for data in train_data_list])
 
-    save_data(train_data_loader, test_data_loader, config.data.processed)
+    # Crear conjuntos de datos
+    train_dataset = create_dataset(train_data_loader)
+    test_dataset = create_dataset(test_data_loader)
+
+    # Serializar conjuntos de datos
+    serialize_dataset(train_dataset, 'train_dataset.pkl', abspath(config.data.processed))
+    serialize_dataset(test_dataset, 'test_dataset.pkl', abspath(config.data.processed))
 
 
 if __name__ == "__main__":

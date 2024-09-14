@@ -1,6 +1,6 @@
 data:
   raw: data/raw/odor.csv
-  processed: data/processed/
+  processed: data/processed
  
 column:
   smile: ["nonStereoSMILES"]
