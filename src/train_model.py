@@ -13,20 +13,20 @@ from torch.utils.data import Dataset
 import os
 from rdkit import Chem
 from omegaconf import DictConfig
+from process import process_data
 
 
-def load_dataset(path: DictConfig):
-    """
-    Load the dataset from the processed directory
-    """
-    data_path = abspath(path.train_path)
+def load_train_dataset(raw_path: str):
+    data_path = abspath(raw_path)
     with open(data_path, 'rb') as f:
         train_dataset = pickle.load(f)
+    return train_dataset
 
-    data_path = abspath(path.test_path)
+def load_test_dataset(raw_path: str):
+    data_path = abspath(raw_path)
     with open(data_path, 'rb') as f:
         test_dataset = pickle.load(f)
-    return train_dataset, test_dataset
+    return test_dataset
 
 class GNNModel(nn.Module):
     def __init__(self):
@@ -103,8 +103,25 @@ def test(model, device, loader):
 
 @hydra.main(config_path="../config", config_name="main", version_base="1.2")
 def train_model(config: DictConfig):
-    print("Hola")
 
+    train_dataset,  test_dataset = process_data(config)
+
+
+    model = GNNModel()
+    criterion = nn.BCELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+
+    # Entrenamiento del modelo
+    for epoch in range(2):
+        train_loss = train(model, device, train_dataset, optimizer, criterion)
+        print(f'Epoch {epoch+1}, Pérdida de entrenamiento: {train_loss:.4f}')
+
+    # Prueba del modelo
+    test_accuracy = test(model, device, test_dataset)
+    print(f'Precisión en la prueba: {test_accuracy:.4f}')
 
 if __name__ == "__main__":
     train_model()

@@ -134,14 +134,6 @@ def process_data(config: DictConfig):
     test_data_loader = pyg_data.DataLoader(test_data_list, batch_size=32, shuffle=False)
     max_nodes_train = max([data.x.size(0) for data in train_data_list])
 
-    # Crear conjuntos de datos
-    train_dataset = create_dataset(train_data_loader)
-    test_dataset = create_dataset(test_data_loader)
+    print("Proceso finalizado")
 
-    # Serializar conjuntos de datos
-    serialize_dataset(train_dataset, 'train_dataset.pkl', abspath(config.data.processed))
-    serialize_dataset(test_dataset, 'test_dataset.pkl', abspath(config.data.processed))
-
-
-if __name__ == "__main__":
-    process_data()
+    return train_data_loader, test_data_loader
