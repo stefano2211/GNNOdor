@@ -15,19 +15,6 @@ from rdkit import Chem
 from omegaconf import DictConfig
 from process import process_data
 
-
-def load_train_dataset(raw_path: str):
-    data_path = abspath(raw_path)
-    with open(data_path, 'rb') as f:
-        train_dataset = pickle.load(f)
-    return train_dataset
-
-def load_test_dataset(raw_path: str):
-    data_path = abspath(raw_path)
-    with open(data_path, 'rb') as f:
-        test_dataset = pickle.load(f)
-    return test_dataset
-
 class GNNModel(nn.Module):
     def __init__(self):
         super(GNNModel, self).__init__()

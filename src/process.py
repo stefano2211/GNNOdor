@@ -92,30 +92,7 @@ def create_data_list(smiles_list, labels):
 
     return data_list
 
-class MyDataset(Dataset):
-    def __init__(self, data):
-        self.data = data
 
-    def __getitem__(self, index):
-        return self.data[index]
-
-    def __len__(self):
-        return len(self.data)
-
-def create_dataset(data_loader):
-    data_list = []
-    for batch in data_loader:
-        data_list.extend(batch)
-    return MyDataset(data_list)
-
-def serialize_dataset(dataset, filename, save_dir):
-    filepath = os.path.join(save_dir, filename)
-    with open(filepath, 'wb') as f:
-        pickle.dump(dataset, f)
-
-def deserialize_dataset(filename):
-    with open(filename, 'rb') as f:
-        return pickle.load(f)
 
 
 @hydra.main(config_path="../config", config_name="main", version_base="1.1")
