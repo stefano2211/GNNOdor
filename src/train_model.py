@@ -110,5 +110,7 @@ def train_model(config: DictConfig):
     test_accuracy = test(model, device, test_dataset)
     print(f'Precisión en la prueba: {test_accuracy:.4f}')
 
+
+    torch.save(model, abspath(config.model_path))
 if __name__ == "__main__":
     train_model()
