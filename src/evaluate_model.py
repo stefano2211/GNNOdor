@@ -7,6 +7,7 @@ from imblearn.over_sampling import RandomOverSampler
 import torch_geometric.nn as pyg_nn
 import torch_geometric.data as pyg_data
 from hydra.utils import to_absolute_path as abspath
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import hydra
 import pickle
 from torch.utils.data import Dataset
@@ -16,61 +17,111 @@ from omegaconf import DictConfig
 from process import create_data_list
 
 
-
-def evaluate_data(raw_data:str):
-    data = pd.read_csv(raw_data)
-
-    X = data["nonStereoSMILES"]
-    y = data.drop(["nonStereoSMILES"], axis=1)
-
-    data_list =  create_data_list(X, y)
-    data_list_loader = pyg_data.DataLoader(data_list, batch_size=32, shuffle=True)
-    max_nodes = max([data.x.size(0) for data in data_list_loader])
-
-    return  data_list_loader
-
-
-def load_model(model_path:str):
-    model = torch.load(model_path)
+def load_model(model_path):
+    model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=True)
     return model
 
-def predict_odor(model, device, loader):
+def predict_odor(smiles, max_nodes, model, device):
+    """
+    Predicts the odor type of a molecule given its SMILES string.
+
+    Args:
+        smiles: The SMILES string representing the molecule.
+        max_nodes: The maximum number of nodes encountered in the training data. # Explain the new argument
+
+    Returns:
+        A list of predicted odor types.
+    """
+
+    molecule = Chem.MolFromSmiles(smiles)
+
+
+    atom_features = []
+    for atom in molecule.GetAtoms():
+        features = []
+        features.append(atom.GetAtomicNum())
+        features.append(atom.GetDegree())
+        features.append(atom.GetTotalValence())
+        atom_features.append(features)
+
+
+    edge_index = []
+    for bond in molecule.GetBonds():
+        i = bond.GetBeginAtomIdx()
+        j = bond.GetEndAtomIdx()
+        edge_index.append([i, j])
+        edge_index.append([j, i])
+    edge_index = torch.tensor(edge_index, dtype=torch.long).T
+
+
+    atom_features = np.array(atom_features, dtype=np.float32)
+
+
+    data = pyg_data.Data(x=torch.tensor(atom_features),
+                        edge_index=edge_index)
+
+
+    num_nodes = data.x.size(0)
+    if num_nodes < max_nodes:
+        padding = torch.zeros((max_nodes - num_nodes, data.x.size(1)))
+        data.x = torch.cat((data.x, padding), dim=0)
+
+
     model.eval()
-    total_correct = 0
-    total_labels = 0  # Keep track of the total number of labels
     with torch.no_grad():
-        for batch in loader:
-            batch = batch.to(device)
-            outputs = model(batch)
+        output = model(data.to(device))
+        predicted = (output).float()
 
-            # For multi-label, use a threshold to determine predicted labels
-            predicted = (outputs > 0.5).float()  # Assuming 0.5 as the threshold
+    return predicted.view(-1).tolist()
 
-            # Iterate over graphs in the batch for comparison
-            for i in range(batch.num_graphs):
-                start = batch.ptr[i]
-                end = batch.ptr[i + 1]
-                graph_predicted = predicted[i]  # Predicted labels for the current graph
+def predict_odor_with_names(smiles, max_nodes, odor_names, model):
+    """
+    Predicts the odor type of a molecule given its SMILES string and returns the names of predicted odors.
 
-                # Extract the true labels for the current graph, ensuring correct shape
-                graph_target = batch.y[start:end].view(-1)  # Reshape to match graph_predicted
+    Args:
+        smiles: The SMILES string representing the molecule.
+        max_nodes: The maximum number of nodes encountered in the training data.
+        odor_names: A list of odor names corresponding to the output indices.
 
-                # Rellenar el tensor graph_target con ceros hasta que tenga el mismo tamaño que graph_predicted
-                graph_target = torch.nn.functional.pad(graph_target, (0, graph_predicted.size(0) - graph_target.size(0)), value=0)
-
-                # Count correct predictions for the current graph
-                total_correct += (graph_predicted == graph_target).sum().item()
-                total_labels += graph_target.size(0)  # Add the number of labels in this graph
-
-    accuracy = total_correct / total_labels  # Calculate accuracy based on total labels
-    return accuracy
-
-@hydra.main(config_path="../config", config_name="main", version_base="1.2")
-def evaluate_model(config:DictConfig):
-    data_list = evaluate_data(abspath(config.data.raw))
-
-    model = load_model(config.model_path)
+    Returns:
+        A list of predicted odor names.
+    """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
-    test_accuracy = predict_odor(model, device, data_list)
-    print(f'Precisión en la prueba: {test_accuracy:.4f}')
+    predicted_array = predict_odor(smiles, max_nodes, model, device)  # Asegúrate de que esto devuelve una lista
+    predicted_odors = [odor_names[i] for i, value in enumerate(predicted_array) if value >= 0.5]  # Itera sobre todos los elementos y usa un umbral para seleccionar los olores predichos
+    return predicted_odors
+
+@hydra.main(config_path="../config", config_name="main", version_base="1.1")
+def evaluate_predict_odor(config:DictConfig):
+    model = load_model(abspath(config.model_path))
+
+    odor_names = [
+        'alcoholic', 'aldehydic', 'alliaceous', 'almond', 'amber', 'animal',
+        'anisic', 'apple', 'apricot', 'aromatic', 'balsamic', 'banana', 'beefy',
+        'bergamot', 'berry', 'bitter', 'black currant', 'brandy', 'burnt',
+        'buttery', 'cabbage', 'camphoreous', 'caramellic', 'cedar', 'celery',
+        'chamomile', 'cheesy', 'cherry', 'chocolate', 'cinnamon', 'citrus', 'clean',
+        'clove', 'cocoa', 'coconut', 'coffee', 'cognac', 'cooked', 'cooling',
+        'cortex', 'coumarinic', 'creamy', 'cucumber', 'dairy', 'dry', 'earthy',
+        'ethereal', 'fatty', 'fermented', 'fishy', 'floral', 'fresh', 'fruit skin',
+        'fruity', 'garlic', 'gassy', 'geranium', 'grape', 'grapefruit', 'grassy',
+        'green', 'hawthorn', 'hay', 'hazelnut', 'herbal', 'honey', 'hyacinth',
+        'jasmin', 'juicy', 'ketonic', 'lactonic', 'lavender', 'leafy', 'leathery',
+        'lemon', 'lily', 'malty', 'meaty', 'medicinal', 'melon', 'metallic',
+        'milky', 'mint', 'muguet', 'mushroom', 'musk', 'musty', 'natural', 'nutty',
+        'odorless', 'oily', 'onion', 'orange', 'orangeflower', 'orris', 'ozone',
+        'peach', 'pear', 'phenolic', 'pine', 'pineapple', 'plum', 'popcorn',
+        'potato', 'powdery', 'pungent', 'radish', 'raspberry', 'ripe', 'roasted',
+        'rose', 'rummy', 'sandalwood', 'savory', 'sharp', 'smoky', 'soapy',
+        'solvent', 'sour', 'spicy', 'strawberry', 'sulfurous', 'sweaty', 'sweet',
+        'tea', 'terpenic', 'tobacco', 'tomato', 'tropical', 'vanilla', 'vegetable',
+        'vetiver', 'violet', 'warm', 'waxy', 'weedy', 'winey', 'woody'
+    ]
+
+    smile = "O=C(O)CCCCC(=O)O"
+    max_node_train = 5000
+    predict_odor = predict_odor_with_names(smile,max_node_train,odor_names,model)
+    print(predict_odor)
+
+

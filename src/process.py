@@ -112,5 +112,6 @@ def process_data(config: DictConfig):
     max_nodes_train = max([data.x.size(0) for data in train_data_list])
 
     print("Proceso finalizado")
+    print(max_nodes_train)
 
     return train_data_loader, test_data_loader
