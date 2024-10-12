@@ -111,11 +111,13 @@ def evaluate_predict_odor(config:DictConfig):
         'vetiver', 'violet', 'warm', 'waxy', 'weedy', 'winey', 'woody'
     ]
 
+    dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     smile = "O=C(O)CCCCC(=O)O"
     max_node_train = 5000
     predict_odor = predict_odor_with_names(smile,max_node_train,odor_names,model)
+    predict_probabilities = predict_odor(smile,max_node_train,model, dev)
     print(predict_odor)
-
+    print(predict_probabilities)
 if __name__ == "__main__":
     evaluate_predict_odor()
 
