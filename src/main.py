@@ -1,6 +1,5 @@
 import hydra
 from evaluate_model import evaluate_predict_odor
-from process import process_data
 from train_model import train_model
 
 
