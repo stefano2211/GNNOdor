@@ -112,6 +112,6 @@ def train_model(config: DictConfig):
 
 
     torch.save(model, abspath(config.model_path))
-    return max_node
+
 if __name__ == "__main__":
     train_model()

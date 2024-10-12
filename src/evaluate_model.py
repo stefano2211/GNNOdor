@@ -15,10 +15,12 @@ import os
 from rdkit import Chem
 from omegaconf import DictConfig
 from process import create_data_list
+from train_model import GNNModel
 
 
 def load_model(model_path):
-    model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=True)
+    torch.serialization.add_safe_globals([GNNModel])
+    model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
     return model
 
 def predict_odor(smiles, max_nodes, model, device):
@@ -123,5 +125,8 @@ def evaluate_predict_odor(config:DictConfig):
     max_node_train = 5000
     predict_odor = predict_odor_with_names(smile,max_node_train,odor_names,model)
     print(predict_odor)
+
+if __name__ == "__main__":
+    evaluate_predict_odor()
 
 
