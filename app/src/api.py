@@ -1,56 +1,35 @@
 from hydra.utils import to_absolute_path as abspath
 from fastapi import FastAPI
 from rdkit import Chem
-import torch.nn as nn
 import torch
-import hydra
 from hydra import compose, initialize
 from pydantic import BaseModel
 import torch_geometric.data as pyg_data
 import numpy as np
-import pandas as pd
 import uvicorn
-import joblib
-import torch_geometric.nn as pyg_nn
-import torch_geometric.nn as pyg_nn
-import torch.nn as nn
 import torch 
-
-
-
-class GNNModel(nn.Module):
-    def __init__(self):
-        super(GNNModel, self).__init__()
-        self.conv1 = pyg_nn.GraphConv(3, 128)
-        self.conv2 = pyg_nn.GraphConv(128, 128)
-        self.pool = pyg_nn.global_mean_pool
-        self.fc1 = nn.Linear(128, 138)
-
-    def forward(self, data):
-        x, edge_index, batch = data.x, data.edge_index, data.batch
-        x = torch.relu(self.conv1(x, edge_index))
-        x = torch.relu(self.conv2(x, edge_index))
-        x = self.pool(x, batch)
-        x = self.fc1(x)
-        return torch.sigmoid(x)
-
-
+from model import GNNModel
 
 app = FastAPI()
-
-
 
 with initialize(version_base=None, config_path="../../config"):
     config = compose(config_name="main")
     MODEL_NAME = config.model_name
     PATH_MODEL = config.model_path
 
-
-
 class Smile(BaseModel):
     smile:str
 
 def load_model(model_path:str):
+    """
+    Loads a pre-trained GNN model from the specified file path.
+
+    Args:
+        model_path (str): The file path to the model's state dictionary.
+
+    Returns:
+        GNNModel: An instance of the GNNModel class with the loaded parameters, set to evaluation mode.
+    """
     model = GNNModel()
     model.load_state_dict(torch.load(model_path))  # Carga los parámetros del modelo
     model.eval()  # Cambia el modelo a modo evaluación
@@ -130,6 +109,20 @@ def predict_odor_with_names(smiles, max_nodes, odor_names, model):
 
 @app.post("/predict")
 async def predict(smile: Smile):
+    """
+    Predicts the odor types of a molecule based on its SMILES representation.
+
+    Args:
+        smile (Smile): A Pydantic model containing the SMILES string of the molecule.
+
+    Returns:
+        dict: A dictionary containing the predicted odor types for the given SMILES string.
+    
+    Example:
+        {
+            "predicted_odors": ["fruity", "sweet", "floral"]
+        }
+    """
     model = load_model(abspath(PATH_MODEL))
     smile_str = smile.smile  # Get the SMILES string from the request
     max_nodes = 92  # Assuming the maximum number of nodes is 100

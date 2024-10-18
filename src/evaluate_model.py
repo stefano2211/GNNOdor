@@ -5,11 +5,19 @@ from hydra.utils import to_absolute_path as abspath
 import hydra
 from rdkit import Chem
 from omegaconf import DictConfig
-import joblib
 from train_model import GNNModel
 
 
 def load_model(model_path):
+    """
+    Loads a trained model from the specified file path.
+
+    Args:
+        model_path: The file path to the saved model.
+
+    Returns:
+        model: The loaded model.
+    """
     torch.serialization.add_safe_globals([GNNModel])
     model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
     return model

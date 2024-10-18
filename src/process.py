@@ -11,10 +11,29 @@ from rdkit import Chem
 from omegaconf import DictConfig
 
 def get_data(raw_path:str):
+    """
+    Loads data from a CSV file.
+
+    Parameters:
+    raw_path (str): Path to the CSV file containing the data.
+
+    Returns:
+    pd.DataFrame: DataFrame containing the loaded data.
+    """
     data = pd.read_csv(raw_path)
     return data
 
 def drop_description(data:pd.DataFrame, drop:list):
+    """
+    Removes specific columns from a DataFrame.
+
+    Parameters:
+    data (pd.DataFrame): DataFrame from which columns will be removed.
+    drop (list): List of column names to remove.
+
+    Returns:
+    pd.DataFrame: DataFrame resulting from the column removal.
+    """
     dataframe = data.drop(drop,axis=1)
     return dataframe
 
@@ -49,6 +68,16 @@ def balance_data(train_smiles, train_labels, test_smiles, test_labels):
 
 
 def create_data_list(smiles_list, labels):
+    """
+    Creates a data list for PyTorch Geometric from SMILES strings and labels.
+
+    Parameters:
+    smiles_list: List of SMILES strings.
+    labels: DataFrame of labels.
+
+    Returns:
+    list: List of data in PyTorch Geometric format.
+    """
     data_list = []
     max_nodes = 0
     for i, smiles in enumerate(smiles_list):
@@ -92,6 +121,23 @@ def create_data_list(smiles_list, labels):
 
 @hydra.main(config_path="../config", config_name="main", version_base="1.1")
 def process_data(config: DictConfig):
+    """
+    Processes data for training a machine learning model.
+
+    This script performs the following tasks:
+    1. Loads data from a CSV file.
+    2. Removes unnecessary columns.
+    3. Splits the data into training and testing sets.
+    4. Balances the training data to avoid biases during training.
+    5. Creates data lists for training and testing in PyTorch Geometric format.
+    6. Creates data loaders for training and testing.
+
+    Parameters:
+    config (DictConfig): Configuration for the experiment.
+
+    Returns:
+    tuple: Data loaders for training and testing.
+    """
     data = get_data(abspath(config.data.raw))
     dataframe = drop_description(data, config.column.drop)
 

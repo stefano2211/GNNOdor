@@ -5,10 +5,20 @@ from hydra.utils import to_absolute_path as abspath
 import hydra
 from omegaconf import DictConfig
 from process import process_data
-import joblib
 
 
 class GNNModel(nn.Module):
+    """
+    A Graph Neural Network (GNN) model for node classification.
+
+    This model consists of two graph convolutional layers, followed by a global mean pooling layer and a fully connected layer.
+
+    Attributes:
+    conv1 (pyg_nn.GraphConv): The first graph convolutional layer.
+    conv2 (pyg_nn.GraphConv): The second graph convolutional layer.
+    pool (pyg_nn.global_mean_pool): The global mean pooling layer.
+    fc1 (nn.Linear): The fully connected layer.
+    """
     def __init__(self):
         super(GNNModel, self).__init__()
         self.conv1 = pyg_nn.GraphConv(3, 128)
@@ -17,6 +27,15 @@ class GNNModel(nn.Module):
         self.fc1 = nn.Linear(128, 138)
 
     def forward(self, data):
+        """
+        The forward pass of the model.
+
+        Parameters:
+        data (pyg_data.Data): The input data, containing node features, edge indices, and batch indices.
+
+        Returns:
+        torch.Tensor: The output of the model, representing the predicted node labels.
+        """
         x, edge_index, batch = data.x, data.edge_index, data.batch
         x = torch.relu(self.conv1(x, edge_index))
         x = torch.relu(self.conv2(x, edge_index))
@@ -25,6 +44,19 @@ class GNNModel(nn.Module):
         return torch.sigmoid(x)
 
 def train(model, device, loader, optimizer, criterion):
+    """
+    Trains the model for one epoch.
+
+    Parameters:
+    model (nn.Module): The model to train.
+    device (torch.device): The device to use for training.
+    loader (pyg_data.DataLoader): The data loader for the training data.
+    optimizer (torch.optim.Optimizer): The optimizer to use for training.
+    criterion (nn.Module): The loss function to use for training.
+
+    Returns:
+    float: The average loss for the epoch.
+    """
     model.train()
     total_loss = 0
     for batch in loader:
@@ -51,6 +83,17 @@ def train(model, device, loader, optimizer, criterion):
     return total_loss / len(loader)
 
 def test(model, device, loader):
+    """
+    Evaluates the model on the test data.
+
+    Parameters:
+    model (nn.Module): The model to evaluate.
+    device (torch.device): The device to use for evaluation.
+    loader (pyg_data.DataLoader): The data loader for the test data.
+
+    Returns:
+    float: The accuracy of the model on the test data.
+    """
     model.eval()
     total_correct = 0
     total_labels = 0  # Keep track of the total number of labels
@@ -83,6 +126,24 @@ def test(model, device, loader):
 
 @hydra.main(config_path="../config", config_name="main", version_base="1.2")
 def train_model(config: DictConfig):
+    """
+    Trains a Graph Neural Network (GNN) model using the specified configuration.
+
+    This function performs the following steps:
+    1. Loads the training and test datasets using the `process_data` function.
+    2. Initializes the GNN model, loss function, and optimizer.
+    3. Moves the model to the appropriate device (GPU or CPU).
+    4. Trains the model for a specified number of epochs, logging the training loss.
+    5. Evaluates the model on the test dataset, logging the test accuracy.
+    6. Saves the model's state dictionary to the specified path.
+
+    Parameters:
+    config (DictConfig): Configuration for the experiment, containing parameters such as
+                         data paths, model paths, and training settings.
+
+    Returns:
+    None: This function does not return any value but performs training and saves the model.
+    """
 
     train_dataset,  test_dataset = process_data(config)
 

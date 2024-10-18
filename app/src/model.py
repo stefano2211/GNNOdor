@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch 
 
 
+
 class GNNModel(nn.Module):
     def __init__(self):
         super(GNNModel, self).__init__()
