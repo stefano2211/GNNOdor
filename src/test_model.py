@@ -93,7 +93,16 @@ def predict_odor_with_names(smiles, max_nodes, odor_names, model):
     return predicted_odors
 
 @hydra.main(config_path="../config", config_name="main", version_base="1.1")
-def evaluate_predict_odor(config:DictConfig):
+def test_predict_odor(config:DictConfig):
+    """
+    Tests the odor prediction function using a loaded model and a set of odor names.
+
+    Args:
+        config (DictConfig): Experiment configuration, including the model path and other parameters.
+
+    Returns:
+        list: A list of predicted odor names.
+    """
     model = load_model(abspath(config.model_path))
 
     odor_names = [
@@ -124,6 +133,6 @@ def evaluate_predict_odor(config:DictConfig):
     predict_odor = predict_odor_with_names(smile,max_node_train,odor_names,model)
     print(predict_odor)
 if __name__ == "__main__":
-    evaluate_predict_odor()
+    test_predict_odor()
 
 
