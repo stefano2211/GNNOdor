@@ -1,6 +1,7 @@
 from hydra.utils import to_absolute_path as abspath
 from fastapi import FastAPI
 from rdkit import Chem
+import torch.nn as nn
 import torch
 import hydra
 from hydra import compose, initialize
@@ -9,25 +10,54 @@ import torch_geometric.data as pyg_data
 import numpy as np
 import pandas as pd
 import uvicorn
-from src.train_model import GNNModel
-from src import process
+import joblib
+import torch_geometric.nn as pyg_nn
+import torch_geometric.nn as pyg_nn
+import torch.nn as nn
+import torch 
+
+
+
+class GNNModel(nn.Module):
+    def __init__(self):
+        super(GNNModel, self).__init__()
+        self.conv1 = pyg_nn.GraphConv(3, 128)
+        self.conv2 = pyg_nn.GraphConv(128, 128)
+        self.pool = pyg_nn.global_mean_pool
+        self.fc1 = nn.Linear(128, 138)
+
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+        x = torch.relu(self.conv1(x, edge_index))
+        x = torch.relu(self.conv2(x, edge_index))
+        x = self.pool(x, batch)
+        x = self.fc1(x)
+        return torch.sigmoid(x)
+
+
 
 app = FastAPI()
+
+
 
 with initialize(version_base=None, config_path="../../config"):
     config = compose(config_name="main")
     MODEL_NAME = config.model_name
     PATH_MODEL = config.model_path
 
+
+
 class Smile(BaseModel):
     smile:str
 
 def load_model(model_path:str):
-    torch.serialization.add_safe_globals([GNNModel])
-    model = torch.load(model_path, map_location='cpu')
+    model = GNNModel()
+    model.load_state_dict(torch.load(model_path))  # Carga los parámetros del modelo
+    model.eval()  # Cambia el modelo a modo evaluación
     return model
 
-def predict_odor(smiles, max_nodes, model, device):
+
+def predict_odor(smiles, max_nodes, model):
     """
     Predicts the odor type of a molecule given its SMILES string.
 
@@ -75,7 +105,7 @@ def predict_odor(smiles, max_nodes, model, device):
 
     model.eval()
     with torch.no_grad():
-        output = model(data.to(device))
+        output = model(data)
         predicted = (output).float()
 
     return predicted.view(-1).tolist()
@@ -93,9 +123,8 @@ def predict_odor_with_names(smiles, max_nodes, odor_names, model):
     Returns:
         A list of predicted odor names.
     """
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
-    predicted_array = predict_odor(smiles, max_nodes, model, device)  # Asegúrate de que esto devuelve una lista
+
+    predicted_array = predict_odor(smiles, max_nodes, model)  # Asegúrate de que esto devuelve una lista
     predicted_odors = [odor_names[i] for i, value in enumerate(predicted_array) if value >= 0.5]  # Itera sobre todos los elementos y usa un umbral para seleccionar los olores predichos
     return predicted_odors
 
@@ -124,8 +153,7 @@ async def predict(smile: Smile):
         'solvent', 'sour', 'spicy', 'strawberry', 'sulfurous', 'sweaty', 'sweet',
         'tea', 'terpenic', 'tobacco', 'tomato', 'tropical', 'vanilla', 'vegetable',
         'vetiver', 'violet', 'warm', 'waxy', 'weedy', 'winey', 'woody']  # Define the list of odor names
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
+
     predicted_odors = predict_odor_with_names(smile_str, max_nodes, odor_names, model)
     return {"predicted_odors": predicted_odors}
 

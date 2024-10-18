@@ -5,6 +5,7 @@ from hydra.utils import to_absolute_path as abspath
 import hydra
 from rdkit import Chem
 from omegaconf import DictConfig
+import joblib
 from train_model import GNNModel
 
 
@@ -13,7 +14,7 @@ def load_model(model_path):
     model = torch.load(model_path, map_location=torch.device('cpu'), weights_only=False)
     return model
 
-def predict_odor(smiles, max_nodes, model, device):
+def predict_odor(smiles, max_nodes, model):
     """
     Predicts the odor type of a molecule given its SMILES string.
 
@@ -61,7 +62,7 @@ def predict_odor(smiles, max_nodes, model, device):
 
     model.eval()
     with torch.no_grad():
-        output = model(data.to(device))
+        output = model(data)
         predicted = (output).float()
 
     return predicted.view(-1).tolist()
@@ -78,9 +79,8 @@ def predict_odor_with_names(smiles, max_nodes, odor_names, model):
     Returns:
         A list of predicted odor names.
     """
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model.to(device)
-    predicted_array = predict_odor(smiles, max_nodes, model, device)  # Asegúrate de que esto devuelve una lista
+
+    predicted_array = predict_odor(smiles, max_nodes, model)  # Asegúrate de que esto devuelve una lista
     predicted_odors = [odor_names[i] for i, value in enumerate(predicted_array) if value >= 0.5]  # Itera sobre todos los elementos y usa un umbral para seleccionar los olores predichos
     return predicted_odors
 
@@ -111,13 +111,10 @@ def evaluate_predict_odor(config:DictConfig):
         'vetiver', 'violet', 'warm', 'waxy', 'weedy', 'winey', 'woody'
     ]
 
-    dev = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     smile = "O=C(O)CCCCC(=O)O"
     max_node_train = 5000
     predict_odor = predict_odor_with_names(smile,max_node_train,odor_names,model)
-    predict_probabilities = predict_odor(smile,max_node_train,model, dev)
     print(predict_odor)
-    print(predict_probabilities)
 if __name__ == "__main__":
     evaluate_predict_odor()
 

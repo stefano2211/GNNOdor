@@ -5,6 +5,8 @@ from hydra.utils import to_absolute_path as abspath
 import hydra
 from omegaconf import DictConfig
 from process import process_data
+import joblib
+
 
 class GNNModel(nn.Module):
     def __init__(self):
@@ -102,7 +104,6 @@ def train_model(config: DictConfig):
     print(f'Precisión en la prueba: {test_accuracy:.4f}')
 
 
-    #torch.save(model, abspath(config.model_path))
     state_dict = model.state_dict()
     torch.save(state_dict, abspath(config.model_path))
 
