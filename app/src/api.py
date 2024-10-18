@@ -8,7 +8,7 @@ import torch_geometric.data as pyg_data
 import numpy as np
 import uvicorn
 import torch 
-from model import GNNModel
+from .model import GNNModel
 
 app = FastAPI()
 
