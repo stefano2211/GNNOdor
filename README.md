@@ -53,6 +53,12 @@ To auto-generate API document for the project, run:
 make docs
 ```
 
+## Run API 
+
+```bash
+uvicorn app.src.api:app
+```
+
 ## Contributions
 
 Contributions are welcome. If you would like to contribute, please open an issue or a pull request.
