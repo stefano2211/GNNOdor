@@ -1,6 +1,6 @@
 # OdorPrediction
 
-https://github.com/stefano2211/GNNOdor/blob/main/GNN.jpeg
+!https://github.com/stefano2211/GNNOdor/blob/main/GNN.jpeg
 
 ## Description
 OdorPrediction is a project designed to predict odors using machine learning techniques. This project includes configuration management, automatic documentation generation, and tools for code review.
